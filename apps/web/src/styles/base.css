@@ -1,0 +1,61 @@
+:root {
+  --color-bg: #fffbf2;
+  --color-surface: #fffefa;
+  --color-surface-muted: #fff6de;
+  --color-surface-hover: #fffaec;
+  --color-primary: #f2cc70;
+  --color-primary-hover: #e8b84b;
+  --color-primary-text: #4c350c;
+  --color-selected: #f8e8ba;
+  --color-accent: #6f4c12;
+  --color-text: #352b1e;
+  --color-text-muted: #786b58;
+  --color-border: #e9dfc8;
+  --color-border-strong: #c5a35f;
+  --color-focus: #8f6318;
+  --color-scrollbar: #cbb78f;
+  --color-success: #2b7050;
+  --color-success-bg: #edf5ec;
+  --color-on-success: #fff;
+  --color-warning: #8a5417;
+  --color-warning-bg: #fff0d6;
+  --color-danger: #a04435;
+  --color-danger-bg: #fff0eb;
+  --color-info: #446a9b;
+  --color-info-bg: #edf2fa;
+  --color-header: rgb(255 254 250 / 90%);
+  --color-shadow: rgb(111 76 18 / 8%);
+  --color-shadow-strong: rgb(111 76 18 / 14%);
+  font-family: Manrope, "Microsoft YaHei", sans-serif;
+  color: var(--color-text);
+  background: var(--color-bg);
+  font-synthesis: none;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+.brand-logo {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+button,
+textarea,
+select {
+  font: inherit;
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}

@@ -1,0 +1,40 @@
+services:
+  api:
+    build:
+      context: .
+      target: api
+    environment:
+      PORT: 3000
+      DATABASE_URL: file:/app/data/dev.db
+      AGENT_MODE: ${AGENT_MODE:-demo}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      MODEL_NAME: ${MODEL_NAME:-}
+      CORS_ORIGIN: http://localhost:8080
+    volumes:
+      - salespilot-data:/app/data
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 30s
+  web:
+    build:
+      context: .
+      target: web
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+volumes:
+  salespilot-data:

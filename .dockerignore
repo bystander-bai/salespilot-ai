@@ -1,0 +1,15 @@
+node_modules
+**/node_modules
+**/dist
+.env
+**/.env
+*.db
+**/*.db
+**/*.db-journal
+**/*.db-wal
+**/*.db-shm
+.git
+artifacts
+test-results
+playwright-report
+ui-smoke.png

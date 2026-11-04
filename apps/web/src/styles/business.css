@@ -1,0 +1,235 @@
+.main-layout.business-layout {
+  grid-template-columns: 195px minmax(0, 1fr);
+}
+.business-heading-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--color-border);
+  border-radius: 13px;
+  background: var(--color-surface-muted);
+  color: var(--color-accent);
+}
+.business-card {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-surface);
+  box-shadow: 0 4px 20px var(--color-shadow);
+}
+.business-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+.business-search {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 9px;
+  min-width: 0;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text-muted);
+  background: var(--color-surface-muted);
+}
+.business-search input {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 12px;
+}
+.business-search:focus-within {
+  border-color: var(--color-focus);
+  box-shadow: 0 0 0 3px var(--color-selected);
+}
+.business-search input::placeholder {
+  color: var(--color-text-muted);
+}
+.business-toolbar select,
+.business-refresh {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+.business-refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+.business-refresh:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
+}
+.business-table-scroll {
+  overflow-x: auto;
+}
+.business-table {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 12px;
+}
+.business-table th {
+  padding: 14px 18px;
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  font-weight: 500;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.business-table td {
+  min-width: 130px;
+  padding: 18px;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text);
+  line-height: 1.7;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.business-table td:first-child {
+  min-width: 160px;
+}
+.business-table td:first-child .business-cell-primary {
+  white-space: nowrap;
+}
+.business-table tbody tr:hover {
+  background: var(--color-surface-hover);
+}
+.business-cell-primary {
+  display: block;
+  white-space: pre-line;
+}
+.business-cell-secondary {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-text-muted);
+  font-size: 10px;
+}
+.business-badge {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 5px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.business-badge.green {
+  color: var(--color-success);
+  background: var(--color-success-bg);
+}
+.business-badge.amber {
+  color: var(--color-warning);
+  background: var(--color-warning-bg);
+}
+.business-badge.muted {
+  color: var(--color-text-muted);
+  background: var(--color-surface-muted);
+}
+.business-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  min-height: 320px;
+  padding: 35px 20px;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+.business-state strong {
+  color: var(--color-text-muted);
+}
+.business-state p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.business-pagination,
+.business-pagination > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.business-pagination {
+  padding: 16px 20px;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+.business-pagination button {
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 5px;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+}
+.business-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.business-spinning {
+  animation: business-spin 1s linear infinite;
+}
+@keyframes business-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (max-width: 1180px) {
+  .main-layout.business-layout {
+    grid-template-columns: 165px minmax(0, 1fr);
+  }
+}
+@media (max-width: 560px) {
+  .business-toolbar {
+    flex-wrap: wrap;
+    padding: 14px;
+    gap: 10px;
+  }
+  .business-search {
+    flex-basis: 100%;
+  }
+  .business-toolbar select {
+    flex: 1;
+    min-width: 0;
+  }
+  .business-heading-icon {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+  }
+  .business-workspace .workspace-heading {
+    gap: 12px;
+  }
+  .business-pagination {
+    padding: 14px;
+    gap: 8px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .business-spinning {
+    animation: none;
+  }
+}

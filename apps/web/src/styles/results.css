@@ -1,0 +1,97 @@
+.result-card {
+  width: min(100%, 430px);
+  margin-top: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 11px 12px;
+  background: var(--color-surface);
+  text-align: left;
+}
+.result-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.result-icon {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+}
+.result-icon.order {
+  color: var(--color-accent);
+  background: var(--color-surface-muted);
+}
+.result-icon.inventory {
+  color: var(--color-accent);
+  background: var(--color-surface-muted);
+}
+.result-icon.ticket {
+  color: var(--color-accent);
+  background: var(--color-surface-muted);
+}
+.result-head > div:nth-child(2) {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.result-head strong {
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.result-head span {
+  color: var(--color-text-muted);
+  font:
+    9px "DM Mono",
+    monospace;
+}
+.result-status {
+  margin-left: auto;
+  border-radius: 12px;
+  padding: 4px 7px;
+  color: var(--color-success) !important;
+  background: var(--color-success-bg);
+  font-family: Manrope !important;
+  white-space: nowrap;
+}
+.result-status.stock {
+  color: var(--color-success) !important;
+  background: var(--color-success-bg);
+}
+.ticket-status {
+  color: var(--color-warning) !important;
+  background: var(--color-warning-bg);
+}
+.result-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 15px;
+  margin: 9px 0 0 35px;
+  color: var(--color-text-muted);
+  font-size: 9px;
+}
+.result-details span {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.result-details b {
+  color: var(--color-accent);
+}
+.stock-bar {
+  height: 4px;
+  overflow: hidden;
+  background: var(--color-surface-muted);
+  border-radius: 4px;
+  margin: 12px 0 0 35px;
+}
+.stock-bar div {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 4px;
+}

@@ -1,0 +1,10 @@
+**/node_modules/**
+**/dist/**
+**/coverage/**
+**/.cache/**
+**/prisma/migrations/**
+**/*.db*
+package-lock.json
+.env
+**/.env
+场景三-销售订单智能助手-开发方案.md

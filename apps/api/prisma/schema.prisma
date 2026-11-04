@@ -1,0 +1,84 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Customer {
+  id        String   @id
+  name      String
+  email     String
+  createdAt DateTime @default(now())
+  orders    Order[]
+}
+
+model Product {
+  sku         String      @id
+  name        String
+  description String?
+  items       OrderItem[]
+  inventory   Inventory[]
+}
+
+model Warehouse {
+  code      String      @id
+  name      String
+  inventory Inventory[]
+}
+
+model Inventory {
+  id        String    @id
+  sku       String
+  warehouse String
+  available Int
+  reserved  Int
+  updatedAt DateTime  @updatedAt
+  product   Product   @relation(fields: [sku], references: [sku])
+  site      Warehouse @relation(fields: [warehouse], references: [code])
+  @@unique([sku, warehouse])
+}
+
+model Order {
+  id                 String              @id
+  customerId         String
+  status             String
+  estimatedDelivery  DateTime?
+  createdAt          DateTime            @default(now())
+  customer           Customer            @relation(fields: [customerId], references: [id])
+  items              OrderItem[]
+  afterSalesTickets  AfterSalesTicket[]
+}
+
+model OrderItem {
+  id        String  @id
+  orderId   String
+  sku       String
+  quantity  Int
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [sku], references: [sku])
+}
+
+model AfterSalesTicket {
+  id              String   @id
+  orderId         String
+  type            String
+  description     String
+  priority        String
+  status          String
+  idempotencyKey  String   @unique
+  createdAt       DateTime @default(now())
+  order           Order    @relation(fields: [orderId], references: [id])
+}
+
+model OperationLog {
+  id         String   @id
+  action     String
+  requestId  String
+  success    Boolean
+  detail     String?
+  createdAt  DateTime @default(now())
+}
