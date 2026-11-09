@@ -60,6 +60,7 @@ model OrderItem {
   quantity  Int
   order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product   Product @relation(fields: [sku], references: [sku])
+  ticketItems TicketItem[]
 }
 
 model AfterSalesTicket {
@@ -72,6 +73,116 @@ model AfterSalesTicket {
   idempotencyKey  String   @unique
   createdAt       DateTime @default(now())
   order           Order    @relation(fields: [orderId], references: [id])
+  createdById     String?
+  assigneeId      String?
+  sourceSessionId String?
+  fromChat        Boolean @default(false)
+  payloadHash     String?
+  updatedAt       DateTime @default(now()) @updatedAt
+  version         Int @default(0)
+  firstResponseAt DateTime?
+  resolvedAt      DateTime?
+  closedAt        DateTime?
+  creator         User? @relation("TicketCreator", fields: [createdById], references: [id])
+  assignee        User? @relation("TicketAssignee", fields: [assigneeId], references: [id])
+  sourceSession   ChatSession? @relation(fields: [sourceSessionId], references: [id], onDelete: SetNull)
+  items           TicketItem[]
+  events          TicketEvent[]
+}
+
+model User {
+  id           String @id
+  username     String @unique
+  name         String
+  passwordHash String
+  role         String
+  enabled      Boolean @default(true)
+  createdAt    DateTime @default(now())
+  logins       LoginSession[]
+  sessions     ChatSession[]
+  runs         ChatRun[]
+  createdTickets AfterSalesTicket[] @relation("TicketCreator")
+  assignedTickets AfterSalesTicket[] @relation("TicketAssignee")
+  events       TicketEvent[]
+}
+
+model LoginSession {
+  tokenHash String @id
+  userId    String
+  expiresAt DateTime
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+}
+
+model ChatSession {
+  id        String @id
+  ownerId   String
+  title     String @default("新会话")
+  context   String @default("{\"version\":1}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  owner     User @relation(fields: [ownerId], references: [id])
+  messages  ChatMessage[]
+  runs      ChatRun[]
+  tickets   AfterSalesTicket[]
+  @@index([ownerId, updatedAt])
+}
+
+model ChatMessage {
+  id        String @id
+  sessionId String
+  role      String
+  content   String
+  snapshot  String?
+  createdAt DateTime @default(now())
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  @@index([sessionId, createdAt])
+}
+
+model ChatRun {
+  id          String @id
+  requestId   String
+  ownerId     String
+  sessionId   String?
+  messageHash String
+  status      String
+  response    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  owner       User @relation(fields: [ownerId], references: [id])
+  session     ChatSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  @@unique([ownerId, requestId])
+  @@index([sessionId, status])
+}
+
+model TicketItem {
+  id          String @id
+  ticketId    String
+  orderItemId String
+  sku         String
+  name        String
+  quantity    Int
+  ticket      AfterSalesTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id])
+  @@index([orderItemId])
+}
+
+model TicketEvent {
+  id          String @id
+  ticketId    String
+  actorId     String
+  requestId   String
+  payloadHash String
+  action      String
+  fromStatus  String
+  toStatus    String
+  note        String
+  assigneeId  String?
+  createdAt   DateTime @default(now())
+  ticket      AfterSalesTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  actor       User @relation(fields: [actorId], references: [id])
+  @@unique([actorId, requestId])
+  @@index([ticketId, createdAt])
 }
 
 model OperationLog {

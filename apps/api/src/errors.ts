@@ -15,6 +15,8 @@ export function normalizeError(error: unknown, requestId: string): ApiError {
     : { code: "INTERNAL_ERROR", message: "服务暂时不可用，请稍后重试", requestId };
 }
 export function errorStatus(code: string): number {
+  if (code === "UNAUTHORIZED") return 401;
+  if (code === "FORBIDDEN") return 403;
   if (code.endsWith("NOT_FOUND")) return 404;
   if (["ORDER_STATUS_INVALID", "IDEMPOTENCY_CONFLICT", "SESSION_BUSY"].includes(code)) return 409;
   if (code === "MODEL_GATEWAY_ERROR") return 502;

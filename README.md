@@ -11,15 +11,16 @@ SalesPilot 将订单查询、库存查询和售后工单整合到一个对话工
 | 模块     | 功能                                                             |
 | -------- | ---------------------------------------------------------------- |
 | 封面入口 | 品牌介绍、主要能力展示，点击“进入工作台”进入业务页面             |
-| 智能对话 | 通过自然语言查询订单、查询库存、创建售后工单；缺少参数时继续追问 |
+| 智能对话 | 查询订单、库存和售后进度，准备售后草稿，缺少参数时追问           |
 | 订单查询 | 展示客户、商品明细、订单状态及预计送达日期，支持搜索、筛选与分页 |
 | 库存查询 | 按商品和仓库查看可用库存、预留库存及更新时间                     |
-| 售后工单 | 创建退货、换货或维修工单，查看已有工单和处理状态                 |
+| 售后工单 | 确认商品数量后提单，领取、转派、备注、解决和关闭工单             |
 | 执行概览 | 展示意图识别、参数校验、工具调用、结果与失败信息                 |
 | 数据刷新 | 状态与统计每 15 秒自动更新，支持手动刷新及成功、失败反馈         |
 
-前端适配桌面和手机屏幕；工作台左上角品牌可返回封面，支持浏览器前进与后退。
+新增团队账号与角色权限、个人历史会话、订单／库存／工单详情联动。对话中的售后申请必须经用户确认后才会创建工单。
 
+前端面向桌面浏览器，最小布局宽度为 1280px，较窄窗口使用横向滚动，不提供手机端专用布局；工作台左上角品牌可返回封面，支持浏览器前进与后退。
 
 ## 技术栈与项目结构
 
@@ -55,7 +56,7 @@ SalesPilot 将订单查询、库存查询和售后工单整合到一个对话工
                 └──────────── SSE 实时推送执行过程 ────────────┘
 ```
 
-业务工具通过 Prisma 访问数据库；模型负责业务规划与回复，不直接执行模型生成的 SQL。售后创建包含订单状态校验和幂等处理。
+业务工具通过 Prisma 访问数据库；模型负责业务规划与回复，不直接执行模型生成的 SQL。售后创建包含订单状态、商品归属、有效申请数量校验和持久化幂等处理；模型只能准备草稿。
 
 ## 本地启动
 
@@ -101,7 +102,15 @@ npm run db:seed
 
 种子数据包含 5 个客户、10 种商品、3 个仓库、10 笔订单、30 条库存记录和 1 个售后工单。重复执行 `db:seed` 会补充缺失的种子记录，保留已有业务记录和操作日志。
 
-### 4. 启动前后端
+### 4. 创建首个管理员
+
+```bash
+npm run admin:create
+```
+
+按提示设置管理员账号、显示名称和至少 10 位的密码，密码输入不显示。没有默认账号或密码。已有管理员时，通过工作台的“账号管理”创建销售和客服账号。管理员、客服、销售共用业务数据，但任何角色都只能访问自己的会话。
+
+### 5. 启动前后端
 
 ```bash
 npm run dev
@@ -119,7 +128,7 @@ npm run dev
 
 ## 使用示例
 
-进入工作台后，可以输入：
+使用管理员或已分配的账号登录工作台后，可以输入：
 
 ```text
 帮我查一下订单 SO202611001 到哪里了？
@@ -129,7 +138,7 @@ npm run dev
 
 示例使用种子数据中的订单号和 SKU。也可以从左侧进入业务列表，直接查看、搜索和筛选记录。
 
-售后申请仅支持已发货或已签收的订单；同一会话中相同参数的重复申请会返回已有工单。演示模式使用本地规则识别需求；模型网关模式可根据对话进行规划和追问。
+售后申请仅支持已发货或已签收的订单。点击草稿卡片中的“确认售后申请”，选择商品和数量，核对后提交；相同提交编号的重试返回原工单，不会重复创建。演示模式使用本地规则识别需求；模型网关模式可根据对话进行规划和追问。
 
 ## 模型模式与环境变量
 
@@ -160,17 +169,18 @@ MODEL_NAME=your-model-name
 
 ### 配置项
 
-| 变量               | 默认值                  | 说明                                    |
-| ------------------ | ----------------------- | --------------------------------------- |
-| `PORT`             | `3000`                  | API 监听端口                            |
-| `DATABASE_URL`     | `file:./dev.db`         | SQLite 连接地址                         |
-| `AGENT_MODE`       | `demo`                  | 使用 `demo` 或 `gateway`                |
-| `OPENAI_BASE_URL`  | 空                      | OpenAI 兼容网关基础地址，通常包含 `/v1` |
-| `OPENAI_API_KEY`   | 空                      | 网关密钥，演示模式无需填写              |
-| `MODEL_NAME`       | 空                      | 网关中的模型标识，演示模式无需填写      |
-| `CORS_ORIGIN`      | `http://localhost:5173` | 允许的前端来源，多个值以逗号分隔        |
-| `MODEL_TIMEOUT_MS` | `20000`                 | 单次模型请求超时，单位毫秒              |
-| `TOOL_TIMEOUT_MS`  | `5000`                  | 单次业务工具调用超时，单位毫秒          |
+| 变量               | 默认值                  | 说明                                                     |
+| ------------------ | ----------------------- | -------------------------------------------------------- |
+| `PORT`             | `3000`                  | API 监听端口                                             |
+| `DATABASE_URL`     | `file:./dev.db`         | SQLite 连接地址                                          |
+| `AGENT_MODE`       | `demo`                  | 使用 `demo` 或 `gateway`                                 |
+| `OPENAI_BASE_URL`  | 空                      | OpenAI 兼容网关基础地址，通常包含 `/v1`                  |
+| `OPENAI_API_KEY`   | 空                      | 网关密钥，演示模式无需填写                               |
+| `MODEL_NAME`       | 空                      | 网关中的模型标识，演示模式无需填写                       |
+| `CORS_ORIGIN`      | `http://localhost:5173` | 允许的前端来源，多个值以逗号分隔                         |
+| `COOKIE_SECURE`    | `false`                 | HTTPS 部署时设为 `true`，使登录 Cookie 仅通过 HTTPS 发送 |
+| `MODEL_TIMEOUT_MS` | `20000`                 | 单次模型请求超时，单位毫秒                               |
+| `TOOL_TIMEOUT_MS`  | `5000`                  | 单次业务工具调用超时，单位毫秒                           |
 
 本地配置从 `apps/api/.env` 读取；已设置的进程环境变量优先。仓库提供不含真实密钥的 `.env.example`，本地 `.env` 和 SQLite 数据文件已通过 `.gitignore` 排除。
 
@@ -231,7 +241,13 @@ Compose 不会自动读取 `apps/api/.env`；以上参数用于将网关配置�
 | 智能工作台   | [http://localhost:8080/workspace](http://localhost:8080/workspace)   |
 | API 健康检查 | [http://localhost:3000/api/health](http://localhost:3000/api/health) |
 
-API 容器启动时自动执行迁移和种子数据初始化，前端由 Nginx 提供服务。数据库持久化在 `salespilot-data` 命名卷中，普通停止和重建容器会保留数据。
+API 容器启动时自动执行迁移和种子数据初始化，前端由 Nginx 提供服务。首次启动后创建管理员：
+
+```bash
+docker compose exec api npm run admin:create
+```
+
+管理员通过前端登录后可创建其他成员。HTTPS 部署时在 Compose 环境中传入 `COOKIE_SECURE=true`，并将 `CORS_ORIGIN` 设置为实际访问来源。数据库持久化在 `salespilot-data` 命名卷中，普通停止和重建容器会保留数据。
 
 查看状态、日志和停止服务：
 
@@ -255,26 +271,18 @@ docker compose down
 | `POST` | `/api/chat`        | 非流式业务对话                 |
 | `POST` | `/api/chat/stream` | SSE 流式业务对话               |
 
-PowerShell 请求示例：
+业务接口需要登录。PowerShell 请求示例：
 
 ```powershell
-Invoke-RestMethod http://localhost:3000/api/health
-
-Invoke-RestMethod -Method Post `
-  -Uri http://localhost:3000/api/chat `
-  -ContentType 'application/json; charset=utf-8' `
-  -Body '{"sessionId":"demo-001","message":"帮我查一下订单 SO202611001 到哪里了"}'
+$credential = Get-Credential
+$loginBody = @{ username = $credential.UserName; password = $credential.GetNetworkCredential().Password } | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri http://localhost:3000/api/auth/login -ContentType 'application/json; charset=utf-8' -Body $loginBody -SessionVariable salespilotLogin
+$chatSession = Invoke-RestMethod -Method Post -Uri http://localhost:3000/api/sessions -ContentType 'application/json' -Body '{}' -WebSession $salespilotLogin
+$chatBody = @{ sessionId = $chatSession.id; message = '查询订单 SO202611001'; requestId = [guid]::NewGuid().ToString() } | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri http://localhost:3000/api/chat -ContentType 'application/json; charset=utf-8' -Body $chatBody -WebSession $salespilotLogin
 ```
 
-macOS / Linux 请求示例：
-
-```bash
-curl -X POST http://localhost:3000/api/chat \
-  -H 'Content-Type: application/json' \
-  -d '{"sessionId":"demo-001","message":"帮我查一下订单 SO202611001 到哪里了"}'
-```
-
-`sessionId` 用于关联多轮对话；流式接口使用相同请求体，返回 `text/event-stream`，客户端以 `run.done` 作为执行结束标记。完整事件与错误码说明见 [API 文档](docs/api.md)。
+`sessionId` 必须由当前账号创建，用于关联多轮对话。流式接口使用相同请求体，返回 `text/event-stream`，客户端以 `run.done` 作为执行结束标记。服务端先持久化结果，再发送结束事件。完整接口、事件与错误码见 [API 文档](docs/api.md)。
 
 ## 常见问题
 
@@ -285,13 +293,33 @@ curl -X POST http://localhost:3000/api/chat \
 检查 `DATABASE_URL` 是否指向预期数据库，并依次运行 `npm run db:generate`、`npm run db:migrate`、`npm run db:seed`。
 
 **页面提示无法连接后台服务？**  
-确认 API 正在运行，并访问 `/api/health` 检查状态。修改 API 端口后，需要同步调整 `apps/web/vite.config.ts` 中的代理目标；更改前端来源时，检查 `CORS_ORIGIN`。
+确认 API 正在运行，并访问 `/api/health` 检查状态。修改 API 端口后，需要同步调整 `apps/web/vite.config.ts` 中的代理目标。同源代理访问支持 `localhost`、`127.0.0.1` 和实际页面端口；反向代理须保留 Host 及端口。前后端分离或 HTTPS 在代理终止时，将实际前端来源加入 `CORS_ORIGIN`。
 
 **网关显示已配置，但对话失败？**  
 检查基础地址、密钥、模型名称及模型的工具调用能力，再查看 API 终端或容器日志。仅填写配置不会验证网关实际可用性。
 
 **刷新页面后，聊天记录还在吗？**  
-当前前端聊天记录保存在页面内存中，刷新页面或离开工作台后会重置。服务端会话也保存在内存中，服务重启后不保留；订单、库存、工单与操作记录存储在 SQLite 中。
+会话、消息、结果快照和待补参数存储在 SQLite 中，刷新、重新登录或服务重启后可恢复。流式生成中断时，会显示中断记录；可重新发送问题，不支持从某个 token 继续生成。浏览器只保存当前会话标识，不保存完整聊天正文。未提交的页面表单草稿仅在当前页面内存保留，刷新页面不会保存手动修改内容。
 
+**如何处理售后？**
 
-当前版本面向本地体验、功能演示与二次开发，业务数据由本地 SQLite 管理。
+客服领取待处理工单后可追加备注、填写解决说明并关闭；管理员可以分配、转派和取消。销售可以取消自己尚未被领取的工单。退款、实物收发和库存增减在本系统之外处理，关闭工单不会自动调整库存。
+
+**如何升级旧版数据？**
+
+停止旧 API，执行 `npm run db:backup` 生成一致性备份，再执行 `npm run db:generate`、`npm run db:migrate`。备份保存在 `.cache/backups/`。迁移保留原有订单、库存、工单及操作日志，不推测旧工单缺失的申请人和商品数量。前后端应同步更新，并创建首个管理员。旧版内存会话无法恢复。
+
+当前版本采用单 API 实例和 SQLite，支持内部团队使用与本地演示。业务接口需要登录，健康检查公开。完整接口见 [API 文档](docs/api.md)，测试结果与联调情况见 [测试与联调报告](docs/测试与联调报告.md)。
+
+## 自动化验证
+
+```bash
+npm test
+npx playwright install chromium
+npm run test:e2e
+npm run build
+```
+
+测试使用 `.cache/verification-*` 下独立数据库，不修改业务数据库；浏览器测试使用独立的 API 端口 `3101` 和前端端口 `4173`。也可通过 `PLAYWRIGHT_CHANNEL=chrome` 使用已安装的 Chrome（PowerShell：`$env:PLAYWRIGHT_CHANNEL='chrome'`）。
+
+测试结果与联调情况见 [测试与联调报告](docs/测试与联调报告.md)。

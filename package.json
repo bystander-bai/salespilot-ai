@@ -19,11 +19,19 @@
     "db:migrate": "npm --workspace apps/api run db:migrate",
     "db:seed": "npm --workspace apps/api run db:seed",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "admin:create": "npm run build:contracts && npm --workspace apps/api run admin:create",
+    "test": "npm run build:contracts && vitest run",
+    "test:e2e": "npm run build:contracts && playwright test",
+    "db:backup": "npm --workspace apps/api run db:backup"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.0",
+    "@types/node": "^22.20.5",
     "concurrently": "^9.1.2",
-    "prettier": "^3.9.10"
+    "prettier": "^3.9.10",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
   },
   "engines": {
     "node": ">=22.12.0"

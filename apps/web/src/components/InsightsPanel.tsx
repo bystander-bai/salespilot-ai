@@ -1,19 +1,16 @@
-import {
-  Activity,
-  Boxes,
-  Check,
-  ChevronDown,
-  Database,
-  LoaderCircle,
-  PackageCheck,
-  RefreshCw,
-  Truck,
-  X,
-} from "lucide-react";
+import { useEffect, useRef } from "react";
+import { ExecutionChain } from "./ExecutionChain";
+import { Boxes, ChevronDown, Database, PackageCheck, RefreshCw, Truck, X } from "lucide-react";
 import type { ReactNode } from "react";
-import type { ActivityFilter, DashboardStats, ExecutionStep } from "../types";
+import type { ActivityFilter, DashboardStats, ExecutionStep, Message } from "../types";
 
 type Props = {
+  messages: Message[];
+  selectedId: string | null;
+  onLatest: () => void;
+  tab: "progress" | "overview";
+  onTab: (tab: "progress" | "overview") => void;
+  onClose: () => void;
   stats: DashboardStats;
   steps: ExecutionStep[];
   loading: boolean;
@@ -29,16 +26,32 @@ const ACTIVITY_LABELS: Record<string, string> = {
   get_order: "查询订单",
   get_inventory: "查询库存",
   create_after_sales_ticket: "创建售后工单",
+  prepare_after_sales_ticket: "准备售后申请",
+  get_tickets: "查询售后进度",
+  "ticket.create": "创建售后工单",
+  "ticket.claim": "领取工单",
+  "ticket.assign": "分配 / 转派工单",
+  "ticket.note": "追加处理备注",
+  "ticket.resolve": "解决售后工单",
+  "ticket.close": "关闭售后工单",
+  "ticket.cancel": "取消售后工单",
+  "user.update": "更新团队账号",
+  "user.create": "创建团队账号",
 };
 const ACTIVITY_KEYWORDS: Record<Exclude<ActivityFilter, "all">, string> = {
   order: "order",
   inventory: "inventory",
-  ticket: "after",
+  ticket: "ticket",
 };
 
 export function InsightsPanel({
+  messages,
+  selectedId,
+  onLatest,
+  tab,
+  onTab,
+  onClose,
   stats,
-  steps,
   loading,
   filter,
   onFilterChange,
@@ -47,36 +60,85 @@ export function InsightsPanel({
   refreshError,
   refreshedAt,
 }: Props) {
+  const panel = useRef<HTMLElement>(null);
+  useEffect(() => {
+    panel.current?.focus();
+  }, []);
+  const latest = messages.filter((m) => m.role === "assistant" && m.id !== "welcome").at(-1);
+  const selected = selectedId ? messages.find((m) => m.id === selectedId) : latest;
+  const index = selected ? messages.indexOf(selected) : -1;
+  const question = messages
+    .slice(0, index)
+    .filter((m) => m.role === "user")
+    .at(-1)?.content;
   const filteredActivity =
     filter === "all"
       ? stats.activity
-      : stats.activity.filter((item) => item.action.includes(ACTIVITY_KEYWORDS[filter]));
+      : stats.activity.filter(
+          (item) =>
+            item.action.includes(ACTIVITY_KEYWORDS[filter]) ||
+            (filter === "ticket" && item.action.includes("after_sales")),
+        );
 
   return (
-    <aside className="insights">
+    <aside
+      className="insights"
+      ref={panel}
+      tabIndex={-1}
+      aria-label="辅助面板"
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onClose();
+      }}
+    >
       <div className="panel-title">
-        <div>
-          <div className="eyebrow">LIVE MONITOR</div>
-          <h2>执行概览</h2>
+        <h2>辅助面板</h2>
+        <button className="icon-button" onClick={onClose} aria-label="关闭辅助面板">
+          <X size={18} />
+        </button>
+      </div>
+      <div className="panel-tabs" role="tablist" aria-label="辅助信息">
+        <button role="tab" aria-selected={tab === "progress"} onClick={() => onTab("progress")}>
+          处理进度
+        </button>
+        <button role="tab" aria-selected={tab === "overview"} onClick={() => onTab("overview")}>
+          业务概览
+        </button>
+      </div>
+      {tab === "progress" ? (
+        <div role="tabpanel">
+          {selectedId && selected !== latest && (
+            <button className="text-button" onClick={onLatest}>
+              返回最新链路 →
+            </button>
+          )}
+          <ExecutionChain
+            message={selected}
+            question={question}
+            loading={loading && selected === latest}
+          />
         </div>
-        <span className="live-indicator">
-          <i /> LIVE
-        </span>
-      </div>
-      <div className="metric-grid">
-        <Metric icon={<Truck size={17} />} label="订单总数" value={stats.orders} />
-        <Metric icon={<PackageCheck size={17} />} label="售后工单" value={stats.tickets} />
-        <Metric icon={<Database size={17} />} label="库存记录" value={stats.inventoryCount} />
-      </div>
-      <ExecutionPanel steps={steps} loading={loading} />
-      <InventoryPanel
-        stats={stats}
-        onRefresh={onRefresh}
-        refreshing={refreshing}
-        refreshError={refreshError}
-        refreshedAt={refreshedAt}
-      />
-      <ActivityPanel activity={filteredActivity} filter={filter} onFilterChange={onFilterChange} />
+      ) : (
+        <div role="tabpanel">
+          <div className="metric-grid">
+            <Metric icon={<Truck size={17} />} label="订单总数" value={stats.orders} />
+            <Metric icon={<PackageCheck size={17} />} label="售后工单" value={stats.tickets} />
+            <Metric icon={<Database size={17} />} label="库存记录" value={stats.inventoryCount} />
+          </div>
+
+          <InventoryPanel
+            stats={stats}
+            onRefresh={onRefresh}
+            refreshing={refreshing}
+            refreshError={refreshError}
+            refreshedAt={refreshedAt}
+          />
+          <ActivityPanel
+            activity={filteredActivity}
+            filter={filter}
+            onFilterChange={onFilterChange}
+          />
+        </div>
+      )}
     </aside>
   );
 }
@@ -91,63 +153,6 @@ function Metric({ icon, label, value }: { icon: ReactNode; label: string; value:
   );
 }
 
-function ExecutionPanel({ steps, loading }: { steps: ExecutionStep[]; loading: boolean }) {
-  return (
-    <div className="execution-panel">
-      <div className="section-title">
-        <span>本次执行链路</span>
-        {loading && <LoaderCircle size={15} className="spin" />}
-      </div>
-      {steps.length ? (
-        <div
-          className="step-list"
-          role="region"
-          aria-label="本次执行步骤"
-          aria-busy={loading}
-          tabIndex={0}
-        >
-          {steps.map((step, index) => (
-            <StepRow key={`${step.id}-${index}`} step={step} last={index === steps.length - 1} />
-          ))}
-        </div>
-      ) : (
-        <div className="empty-state">
-          <Activity size={22} />
-          <span>
-            发送一条消息后
-            <br />
-            这里会显示执行过程
-          </span>
-        </div>
-      )}
-      {steps.length > 4 && (
-        <div className="step-list-hint">共 {steps.length} 步 · 上下滚动查看更多</div>
-      )}
-    </div>
-  );
-}
-
-function StepRow({ step, last }: { step: ExecutionStep; last: boolean }) {
-  return (
-    <div className="step">
-      <div className={`step-icon ${step.state}`}>
-        {step.state === "error" ? (
-          <X size={13} />
-        ) : step.state === "running" ? (
-          <LoaderCircle size={13} className="spin" />
-        ) : (
-          <Check size={13} />
-        )}
-      </div>
-      <div className="step-body">
-        <strong>{step.label}</strong>
-        {step.detail && <span>{step.detail}</span>}
-      </div>
-      {!last && <div className="step-line" />}
-    </div>
-  );
-}
-
 function InventoryPanel({
   stats,
   onRefresh,
@@ -158,7 +163,7 @@ function InventoryPanel({
   return (
     <div className="inventory-panel">
       <div className="section-title">
-        <span>库存关注</span>
+        <span>库存列表</span>
         <button
           className="plain-icon inventory-refresh"
           aria-label="刷新库存"

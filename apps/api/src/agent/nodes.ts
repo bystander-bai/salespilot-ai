@@ -43,7 +43,7 @@ export function createAgentNodes(context: RunContext) {
       const plan =
         config.mode === "demo"
           ? demoPlan(message, session)
-          : await gateway!.plan(message, session.history, signal, exchanges);
+          : await gateway!.plan(message, session.history, signal, exchanges, session);
       if (plan.tool && exchanges.length >= MAX_TOOL_CALLS) {
         throw new BusinessError(
           "MODEL_GATEWAY_ERROR",
@@ -140,7 +140,7 @@ export function createAgentNodes(context: RunContext) {
     if (result.kind === "inventory") {
       session.lastSku = result.sku;
       session.lastWarehouse = result.warehouse;
-    } else session.lastOrderId = result.orderId;
+    } else if (result.orderId) session.lastOrderId = result.orderId;
     sources.push(resultSource(result));
     return {};
   }

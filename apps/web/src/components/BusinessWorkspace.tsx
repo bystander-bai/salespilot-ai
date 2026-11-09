@@ -9,11 +9,19 @@ import {
   Search,
   Truck,
 } from "lucide-react";
-import { orderStatusLabels, type BusinessModule } from "@salespilot/contracts";
+import { orderStatusLabels, type BusinessModule, type TicketListItem } from "@salespilot/contracts";
+import { useBusinessUI } from "../business-ui";
 import { fetchBusinessList } from "../api";
 
-type Cell = { primary: string; secondary?: string; tone?: "green" | "amber" | "muted" };
-type Row = { id: string; filter: string; cells: Cell[] };
+type Cell = { primary: string; secondary?: string; tone?: "green" | "amber" | "muted" | "red" };
+type Row = {
+  createdAt?: string;
+  available?: number;
+  id: string;
+  filter: string;
+  cells: Cell[];
+  ticket?: TicketListItem;
+};
 type ModuleDefinition = {
   title: string;
   subtitle: string;
@@ -58,12 +66,17 @@ const modules: Record<BusinessModule, ModuleDefinition> = {
     async load(signal) {
       return (await fetchBusinessList("orders", signal)).map((order) => ({
         id: order.orderId,
+        createdAt: order.createdAt,
         filter: orderStatusLabels[order.status] ?? order.status,
         cells: [
           { primary: order.orderId, secondary: date(order.createdAt, true) },
           { primary: order.customerName },
           {
-            primary: order.items.map((item) => `${item.name} × ${item.quantity}`).join("\n"),
+            primary:
+              order.items
+                .slice(0, 2)
+                .map((item) => `${item.name} × ${item.quantity}`)
+                .join("\n") + (order.items.length > 2 ? `\n另有 ${order.items.length - 2} 项` : ""),
             secondary: order.items.map((item) => item.sku).join(" / "),
           },
           {
@@ -91,6 +104,7 @@ const modules: Record<BusinessModule, ModuleDefinition> = {
     async load(signal) {
       return (await fetchBusinessList("inventory", signal)).map((item) => ({
         id: `${item.sku}:${item.warehouse}`,
+        available: item.available,
         filter: item.warehouseName,
         cells: [
           { primary: item.productName, secondary: item.sku },
@@ -124,6 +138,8 @@ const modules: Record<BusinessModule, ModuleDefinition> = {
     async load(signal) {
       return (await fetchBusinessList("tickets", signal)).map((ticket) => ({
         id: ticket.ticketId,
+        createdAt: ticket.createdAt,
+        ticket,
         filter: ticketStatuses[ticket.status] ?? ticket.status,
         cells: [
           { primary: ticket.ticketId, secondary: date(ticket.createdAt, true) },
@@ -136,7 +152,8 @@ const modules: Record<BusinessModule, ModuleDefinition> = {
           },
           {
             primary: ticket.priority === "HIGH" ? "高优先级" : "普通",
-            secondary: `${ticket.estimatedResponseHours} 小时内响应`,
+            tone: ticket.overdue ? "red" : ticket.priority === "HIGH" ? "amber" : "muted",
+            secondary: `${ticket.assigneeName ?? "未分配"} · ${ticket.overdue ? "响应已超时" : ticket.firstResponseAt ? "已响应" : `${ticket.estimatedResponseHours} 小时内响应`}`,
           },
         ],
       }));
@@ -151,6 +168,7 @@ export function BusinessWorkspace({
   module: BusinessModule;
   revision: number;
 }) {
+  const { open, user } = useBusinessUI();
   const definition = modules[module];
   const Icon = definition.icon;
   const [rows, setRows] = useState<Row[]>([]);
@@ -160,6 +178,43 @@ export function BusinessWorkspace({
   const [filter, setFilter] = useState("");
   const [page, setPage] = useState(1);
   const [refreshCount, setRefreshCount] = useState(0);
+  const [scope, setScope] = useState("all");
+  const [priority, setPriority] = useState("");
+  const [assignee, setAssignee] = useState("");
+  const [quickView, setQuickView] = useState("all");
+  const [sort, setSort] = useState("default");
+  const [updatedAt, setUpdatedAt] = useState<number | null>(null);
+  const hasData = rows.length > 0;
+  const dirty = !!(
+    query ||
+    filter ||
+    priority ||
+    assignee ||
+    scope !== "all" ||
+    quickView !== "all"
+  );
+  function clearFilters() {
+    setQuery("");
+    setFilter("");
+    setPriority("");
+    setAssignee("");
+    setScope("all");
+    setQuickView("all");
+    setPage(1);
+  }
+  function matchesView(row: Row, view: string) {
+    return (
+      view === "all" ||
+      (!!row.ticket &&
+        (view === "mine"
+          ? row.ticket.createdById === user.id
+          : view === "assigned"
+            ? row.ticket.assigneeId === user.id
+            : view === "unassigned"
+              ? !row.ticket.assigneeId && row.ticket.status === "CREATED"
+              : view === "high" && row.ticket.priority === "HIGH"))
+    );
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -168,11 +223,13 @@ export function BusinessWorkspace({
     definition
       .load(controller.signal)
       .then((result) => {
-        if (!controller.signal.aborted) setRows(result);
+        if (!controller.signal.aborted) {
+          setRows(result);
+          setUpdatedAt(Date.now());
+        }
       })
       .catch((cause: unknown) => {
         if (!controller.signal.aborted) {
-          setRows([]);
           setError(cause instanceof Error ? cause.message : "数据加载失败，请重试");
         }
       })
@@ -187,29 +244,81 @@ export function BusinessWorkspace({
     const keyword = query.trim().toLocaleLowerCase();
     return rows.filter(
       (row) =>
+        matchesView(row, quickView) &&
+        (!row.ticket ||
+          ((!priority || row.ticket.priority === priority) &&
+            (!assignee || row.ticket.assigneeId === assignee) &&
+            (scope === "all" ||
+              (scope === "mine" && row.ticket.createdById === user.id) ||
+              (scope === "unassigned" &&
+                !row.ticket.assigneeId &&
+                row.ticket.status === "CREATED") ||
+              (scope === "assigned" && row.ticket.assigneeId === user.id)))) &&
         (!filter || row.filter === filter) &&
         row.cells.some((cell) =>
           `${cell.primary} ${cell.secondary ?? ""}`.toLocaleLowerCase().includes(keyword),
         ),
     );
-  }, [rows, query, filter]);
+  }, [rows, query, filter, priority, assignee, scope, user.id, quickView]);
+  const sorted = useMemo(
+    () =>
+      sort === "default"
+        ? filtered
+        : [...filtered].sort((a, b) =>
+            sort === "available"
+              ? (a.available ?? 0) - (b.available ?? 0)
+              : sort === "priority"
+                ? Number(b.ticket?.priority === "HIGH") - Number(a.ticket?.priority === "HIGH")
+                : sort === "oldest"
+                  ? Date.parse(a.createdAt ?? "") - Date.parse(b.createdAt ?? "")
+                  : Date.parse(b.createdAt ?? "") - Date.parse(a.createdAt ?? ""),
+          ),
+    [filtered, sort],
+  );
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
-  const visibleRows = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const visibleRows = sorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
     <section className="workspace business-workspace" aria-label={definition.title}>
       <div className="workspace-heading">
         <div>
-          <div className="eyebrow">{definition.eyebrow}</div>
           <h1>{definition.title}</h1>
           <p>{definition.subtitle}</p>
         </div>
-        <div className="business-heading-icon">
-          <Icon size={24} />
-        </div>
+        <span className="business-updated">
+          {loading
+            ? "正在刷新…"
+            : updatedAt
+              ? `更新于 ${new Date(updatedAt).toLocaleTimeString("zh-CN", { hour12: false })}`
+              : "尚未加载"}
+        </span>
       </div>
       <div className="business-card">
+        <div className="business-views" aria-label="快捷视图">
+          {(module === "tickets"
+            ? [
+                ["all", "全部"],
+                ["unassigned", "待领取"],
+                ["assigned", "分配给我"],
+                ["mine", "我创建的"],
+                ["high", "高优先级"],
+              ]
+            : [["all", module === "orders" ? "全部订单" : "全部库存"]]
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              aria-pressed={quickView === key}
+              onClick={() => {
+                setQuickView(key);
+                setPage(1);
+              }}
+            >
+              {label}
+              <small>{rows.filter((row) => matchesView(row, key)).length}</small>
+            </button>
+          ))}
+        </div>
         <div className="business-toolbar">
           <label className="business-search">
             <Search size={16} aria-hidden="true" />
@@ -238,6 +347,80 @@ export function BusinessWorkspace({
               </option>
             ))}
           </select>
+          {module === "tickets" && (
+            <>
+              <select
+                aria-label="工单范围"
+                value={scope}
+                onChange={(e) => {
+                  setScope(e.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="all">全部工单</option>
+                <option value="mine">我提交的</option>
+                <option value="unassigned">待领取</option>
+                <option value="assigned">我负责的</option>
+              </select>
+              <select
+                aria-label="工单优先级"
+                value={priority}
+                onChange={(e) => {
+                  setPriority(e.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="">全部优先级</option>
+                <option value="NORMAL">普通</option>
+                <option value="HIGH">高优先级</option>
+              </select>
+              <select
+                aria-label="筛选负责人"
+                value={assignee}
+                onChange={(e) => {
+                  setAssignee(e.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="">全部负责人</option>
+                {[
+                  ...new Map(
+                    rows
+                      .filter((r) => r.ticket?.assigneeId)
+                      .map((r) => [r.ticket!.assigneeId!, r.ticket!.assigneeName ?? "历史负责人"]),
+                  ).entries(),
+                ].map(([id, name]) => (
+                  <option key={id} value={id}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+          <select
+            aria-label="列表排序"
+            value={sort}
+            onChange={(e) => {
+              setSort(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="default">默认排序</option>
+            {module === "inventory" ? (
+              <option value="available">可用量从低到高</option>
+            ) : (
+              <>
+                <option value="newest">创建时间从新到旧</option>
+                <option value="oldest">创建时间从旧到新</option>
+                {module === "tickets" && <option value="priority">高优先级在前</option>}
+              </>
+            )}
+          </select>
+          {dirty && (
+            <button className="business-refresh" onClick={clearFilters}>
+              清除筛选
+            </button>
+          )}
           <button
             className="business-refresh"
             disabled={loading}
@@ -247,12 +430,38 @@ export function BusinessWorkspace({
             刷新
           </button>
         </div>
-        {loading ? (
-          <div className="business-state" role="status">
-            <RefreshCw className="business-spinning" size={25} />
-            <strong>正在加载{definition.title}数据…</strong>
+        {dirty && (
+          <div className="filter-summary">
+            已应用：
+            {[
+              query && `搜索「${query}」`,
+              filter,
+              priority && (priority === "HIGH" ? "高优先级" : "普通优先级"),
+              assignee && "指定负责人",
+              scope !== "all" && "工单范围",
+              quickView !== "all" && "快捷视图",
+            ]
+              .filter(Boolean)
+              .join(" · ")}
           </div>
-        ) : error ? (
+        )}
+        {error && hasData && (
+          <div className="refresh-error" role="alert">
+            更新失败，当前为上次成功加载的数据。{error}
+            <button onClick={() => setRefreshCount((v) => v + 1)}>重试</button>
+          </div>
+        )}
+        {loading && !hasData ? (
+          <div
+            className="business-skeleton"
+            role="status"
+            aria-label={`正在加载${definition.title}数据`}
+          >
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} />
+            ))}
+          </div>
+        ) : error && !hasData ? (
           <div className="business-state" role="alert">
             <AlertCircle size={27} />
             <strong>数据加载失败</strong>
@@ -273,12 +482,15 @@ export function BusinessWorkspace({
                 ? "请尝试其他关键词或筛选条件。"
                 : "当前没有可展示的数据，可稍后刷新查看。"}
             </p>
-            {(query || filter) && (
+            {(query || filter || priority || assignee || scope !== "all") && (
               <button
                 className="business-refresh"
                 onClick={() => {
                   setQuery("");
                   setFilter("");
+                  setPriority("");
+                  setAssignee("");
+                  setScope("all");
                   setPage(1);
                 }}
               >
@@ -297,32 +509,64 @@ export function BusinessWorkspace({
                       {column}
                     </th>
                   ))}
+                  <th scope="col">操作</th>
                 </tr>
               </thead>
               <tbody>
                 {visibleRows.map((row) => (
                   <tr key={row.id}>
                     {row.cells.map((cell, index) => (
-                      <td key={index}>
-                        <span
-                          className={
-                            cell.tone ? `business-badge ${cell.tone}` : "business-cell-primary"
-                          }
-                        >
-                          {cell.primary}
-                        </span>
+                      <td
+                        key={index}
+                        className={`${module === "inventory" && (index === 2 || index === 3) ? "numeric-cell" : ""} ${module === "tickets" && index === 3 ? "description-cell" : ""}`}
+                      >
+                        {index === 0 && module !== "inventory" ? (
+                          <button
+                            className="business-id"
+                            onClick={() =>
+                              open({ kind: module === "orders" ? "order" : "ticket", id: row.id })
+                            }
+                          >
+                            {cell.primary}
+                          </button>
+                        ) : (
+                          <span
+                            className={
+                              cell.tone ? `business-badge ${cell.tone}` : "business-cell-primary"
+                            }
+                          >
+                            {cell.primary}
+                          </span>
+                        )}
                         {cell.secondary && (
                           <span className="business-cell-secondary">{cell.secondary}</span>
                         )}
                       </td>
                     ))}
+                    <td>
+                      <button
+                        onClick={() =>
+                          open({
+                            kind:
+                              module === "orders"
+                                ? "order"
+                                : module === "tickets"
+                                  ? "ticket"
+                                  : "inventory",
+                            id: module === "inventory" ? row.id.split(":")[0] : row.id,
+                          })
+                        }
+                      >
+                        {module === "inventory" ? "对比其他仓库" : "查看详情"}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
-        {!loading && !error && (
+        {hasData && (
           <div className="business-pagination">
             <span>
               共 {filtered.length} 条记录

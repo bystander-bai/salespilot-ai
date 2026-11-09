@@ -3,6 +3,7 @@ import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from "@langchain/
 import { type BusinessResult, type ToolName, toolSchemas, toolNames } from "@salespilot/contracts";
 import type { Config } from "./config.js";
 import { BusinessError } from "./errors.js";
+import type { Conversation } from "./demo.js";
 
 export type HistoryEntry = { role: "user" | "assistant"; content: string };
 export type Plan = {
@@ -18,6 +19,7 @@ export interface Gateway {
     history: HistoryEntry[],
     signal?: AbortSignal,
     exchanges?: ToolExchange[],
+    context?: Conversation,
   ): Promise<Plan>;
   answer(
     plan: Plan,
@@ -30,8 +32,9 @@ export interface Gateway {
 const descriptions = {
   get_order: "按订单号查询订单状态、客户、商品、预计送达日期。订单号为 SO 开头的数字编号。",
   get_inventory: "查询商品在仓库的可用和预留库存。深圳仓=SZ-01，上海仓=SH-01，北京仓=BJ-01。",
-  create_after_sales_ticket:
-    "用户明确要求创建售后、退货、换货或维修申请时创建工单。type 为 RETURN/REPAIR/EXCHANGE，priority 为 NORMAL/HIGH。需要订单号和具体问题描述。",
+  prepare_after_sales_ticket:
+    "用户要求售后时准备申请草稿，不创建工单。type 为 RETURN/REPAIR/EXCHANGE，priority 为 NORMAL/HIGH。需要订单号和具体问题描述；用户必须在页面确认商品与数量并提交。",
+  get_tickets: "按工单号或订单号查询售后处理状态。多个匹配时全部展示，不猜测目标。",
 };
 function assertPublicText(text: string) {
   if (/<\s*\/?\s*(?:[｜|]+\s*)?DSML\b/i.test(text))
@@ -56,10 +59,11 @@ export class OpenAICompatibleGateway implements Gateway {
     history: HistoryEntry[],
     signal?: AbortSignal,
     exchanges: ToolExchange[] = [],
+    context?: Conversation,
   ): Promise<Plan> {
     const schemas = {
       ...toolSchemas,
-      create_after_sales_ticket: toolSchemas.create_after_sales_ticket.omit({
+      prepare_after_sales_ticket: toolSchemas.prepare_after_sales_ticket.omit({
         idempotencyKey: true,
       }),
     };
@@ -74,7 +78,10 @@ export class OpenAICompatibleGateway implements Gateway {
     const response = await model.invoke(
       [
         new SystemMessage(
-          "你是销售订单助手。仅支持查询订单、查询库存和创建售后工单。每一步只调用一个工具，收到查询结果后继续完成用户原始请求；用户要求创建售后时，查询订单不代表已创建工单。必须使用提供的工具定义和参数，禁止将工具调用写入正文。业务信息必须通过工具查询，不能编造。缺少必要参数请用中文追问，不能猜测订单号、商品编码和仓库；售后类型不明确时追问退货、换货或维修。参考会话补全用户明确提供的字段。任务完成后简短回应，不要重复调用已完成的工具。普通问候简短回应。超出业务范围时说明支持的功能。不要输出隐藏推理或声称已执行尚未调用的工具。",
+          "你是销售订单助手，支持查询订单、库存、售后进度和准备售后草稿。不能直接创建工单、修改状态或分配人员。售后草稿完成后引导用户点击卡片确认商品与数量并提交，不得声称已创建工单。每一步只调用一个工具。必须通过工具查询业务信息，禁止编造或将工具调用写入正文。缺少必要参数用中文追问，不能猜测订单号、商品编码和仓库；售后类型不明确时追问退货、换货或维修。参考会话补全明确提供的字段。任务完成后简短回应，不重复调用已完成工具。不要输出隐藏推理。",
+        ),
+        new SystemMessage(
+          `本会话已确认的业务引用与待补参数：${JSON.stringify({ lastOrderId: context?.lastOrderId, lastSku: context?.lastSku, lastWarehouse: context?.lastWarehouse, pending: context?.pending })}。仅在用户指代前文时参考这些字段。`,
         ),
         ...history.map((h) =>
           h.role === "user" ? new HumanMessage(h.content) : new AIMessage(h.content),
@@ -120,7 +127,7 @@ export class OpenAICompatibleGateway implements Gateway {
     const stream = await this.model.stream(
       [
         new SystemMessage(
-          "业务执行阶段已经结束。根据提供的执行结果 JSON 用中文简洁回复，不再调用工具，也不输出工具调用标记。只陈述已返回的数据，不补充未知信息。kind=order 只表示查询订单成功，不代表创建售后成功。duplicate=true 表示已存在相同工单，应说明未重复创建。不要声称已退款或批准售后。",
+          "业务执行阶段已经结束，根据 JSON 简洁回复，只陈述返回数据，不调用工具。kind=ticketDraft 仅为草稿，必须引导点击确认售后申请并选择商品数量，不能声称工单已创建。kind=tickets 展示实际进度；kind=order 仅为查询订单成功。不要声称已退款或批准售后。",
         ),
         new HumanMessage(message),
         // Summarization is a separate text-only request, not another tool turn.

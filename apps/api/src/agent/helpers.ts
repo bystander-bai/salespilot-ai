@@ -9,11 +9,13 @@ const ARGUMENT_LABELS: Record<string, string> = {
   description: "具体问题描述",
   type: "售后类型（退货、换货或维修）",
   priority: "工单优先级",
+  ticketId: "工单号",
 };
 export const TOOL_LABELS = {
   get_order: "查询订单",
   get_inventory: "查询库存",
-  create_after_sales_ticket: "创建售后工单",
+  prepare_after_sales_ticket: "准备售后申请",
+  get_tickets: "查询售后进度",
 };
 export const MAX_TOOL_RETRIES = 1;
 export const HISTORY_MESSAGE_LIMIT = 12;
@@ -21,11 +23,23 @@ const ANSWER_CHUNK_SIZE = 12;
 
 export function clarificationFields(issues: { path: PropertyKey[] }[]) {
   return [
-    ...new Set(issues.map((issue) => ARGUMENT_LABELS[String(issue.path[0])] ?? "有效的业务参数")),
+    ...new Set(
+      issues.map((issue) =>
+        issue.path.length
+          ? (ARGUMENT_LABELS[String(issue.path[0])] ?? "有效的业务参数")
+          : "订单号或工单号",
+      ),
+    ),
   ];
 }
 
 export function resultAnswer(result: BusinessResult): string {
+  if (result.kind === "ticketDraft")
+    return `已整理订单 ${result.orderId} 的售后申请草稿。请点击“确认售后申请”，选择商品及数量并确认提交；当前尚未创建工单。`;
+  if (result.kind === "tickets")
+    return result.tickets.length
+      ? `查询到 ${result.tickets.length} 个售后工单，请查看下方处理进度。`
+      : "未找到对应售后工单。";
   if (result.kind === "order") {
     const items = result.items.map((item) => `${item.name} × ${item.quantity}`).join("、");
     const delivery = result.estimatedDelivery
@@ -45,7 +59,11 @@ export function resultSource(result: BusinessResult): Source {
       ? `orders:${result.orderId}`
       : result.kind === "ticket"
         ? `after_sales_tickets:${result.ticketId}`
-        : `inventory:${result.sku}:${result.warehouse}`;
+        : result.kind === "inventory"
+          ? `inventory:${result.sku}:${result.warehouse}`
+          : result.kind === "ticketDraft"
+            ? `orders:${result.orderId}`
+            : `after_sales_tickets:${result.orderId ?? "search"}`;
   return { type: "database", reference };
 }
 

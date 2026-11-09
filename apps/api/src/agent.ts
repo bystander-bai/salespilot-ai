@@ -64,7 +64,9 @@ export class SalesAgent {
       )
       .addEdge("retry", "callTool")
       .addConditionalEdges("validateToolResult", (state) =>
-        !state.error && this.config.mode === "gateway" && state.result?.kind !== "ticket"
+        !state.error &&
+        this.config.mode === "gateway" &&
+        (state.result?.kind === "order" || state.result?.kind === "inventory")
           ? "routeIntent"
           : "composeAnswer",
       )

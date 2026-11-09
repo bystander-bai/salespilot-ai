@@ -84,7 +84,7 @@ export function LandingPage({ onEnter }: Props) {
               </div>
               <div className="landing-preview-message">
                 <MessageSquareText size={18} />
-                <span>帮我查一下这笔订单的配送进度</span>
+                <span>帮我查订单 SO202611001 的配送进度</span>
               </div>
               <div className="landing-preview-connector">
                 <span />
@@ -96,8 +96,8 @@ export function LandingPage({ onEnter }: Props) {
                   <Truck size={25} />
                 </div>
                 <div>
-                  <strong>订单信息，清晰呈现</strong>
-                  <p>商品明细 · 配送状态 · 预计送达</p>
+                  <strong>订单已发货 · 预计 11 月 9 日送达</strong>
+                  <p>智能手机 Pro × 2 · 示例订单</p>
                 </div>
                 <div className="landing-preview-check">
                   <Check size={16} />
@@ -105,7 +105,7 @@ export function LandingPage({ onEnter }: Props) {
               </div>
               <div className="landing-preview-bottom">
                 <Sparkles size={14} />
-                <span>少一点繁琐，多一份从容。</span>
+                <span>查看订单详情 → 核对并申请售后</span>
               </div>
             </div>
             <div className="landing-floating-note">

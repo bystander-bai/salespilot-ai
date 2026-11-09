@@ -15,6 +15,8 @@ export type Message = {
   steps?: ChatResponse["steps"];
   error?: string;
   runId?: string;
+  createdAt?: string;
+  trace?: ChatResponse["trace"];
 };
 
 export type ExecutionStep = {

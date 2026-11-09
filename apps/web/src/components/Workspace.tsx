@@ -1,33 +1,37 @@
-import { Activity } from "lucide-react";
-import { samples } from "../constants";
+import { PanelLeft, PanelRight } from "lucide-react";
 import type { ChatSession } from "../hooks/useChatSession";
 import { ChatPanel } from "./ChatPanel";
-
-const QUICK_ACTION_LIMIT = 3;
-type Props = { chat: ChatSession; onSendSample: (sample: string) => void };
-
-export function Workspace({ chat, onSendSample }: Props) {
+export function Workspace({
+  chat,
+  onPanel,
+  onHistory,
+  onChain,
+}: {
+  chat: ChatSession;
+  onPanel: () => void;
+  onHistory: () => void;
+  onChain: (id: string) => void;
+}) {
+  const question = chat.messages.find((m) => m.role === "user")?.content;
   return (
-    <section className="workspace">
-      <div className="workspace-heading">
+    <section className="workspace chat-workspace">
+      <header className="workspace-session">
+        <button
+          className="icon-button history-toggle"
+          onClick={onHistory}
+          aria-label="打开历史会话"
+        >
+          <PanelLeft size={19} />
+        </button>
         <div>
-          <div className="eyebrow">AI OPERATIONS DESK</div>
-          <h1>今天有什么可以帮忙？</h1>
-          <p>用一句话描述你的业务需求，Agent 会自动识别意图并调用对应工具。</p>
+          <h1>{question || "智能工作台"}</h1>
+          <p>把查询交给助手，把时间留给业务。</p>
         </div>
-        <div className="heading-badge">
-          <Activity size={15} />
-          <span>实时执行链路</span>
-        </div>
-      </div>
-      <div className="quick-actions">
-        <span>试试这样问</span>
-        {samples.slice(0, QUICK_ACTION_LIMIT).map((sample) => (
-          <button key={sample} onClick={() => onSendSample(sample)} disabled={chat.loading}>
-            {sample.replace(/[？?]/, "")}
-          </button>
-        ))}
-      </div>
+        <button className="secondary-button" onClick={onPanel}>
+          <PanelRight size={17} />
+          辅助面板
+        </button>
+      </header>
       <ChatPanel
         messages={chat.messages}
         loading={chat.loading}
@@ -37,6 +41,11 @@ export function Workspace({ chat, onSendSample }: Props) {
         onInputChange={chat.setInput}
         onSend={() => void chat.send()}
         onClear={chat.clear}
+        onChain={onChain}
+        onPrepare={chat.prepare}
+        hasOlder={chat.hasOlder}
+        onLoadOlder={() => void chat.loadOlder()}
+        onReload={chat.reload}
       />
     </section>
   );

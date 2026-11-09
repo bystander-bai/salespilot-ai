@@ -1,85 +1,76 @@
 import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "@prisma/client";
-import {
-  toolSchemas,
-  type BusinessResult,
-  type ToolName,
-  type ToolArguments,
-} from "@salespilot/contracts";
-import type { ZodType } from "zod";
+import { toolSchemas, type BusinessResult, type ToolName } from "@salespilot/contracts";
+import { parseInput } from "./auth.js";
 import { BusinessError } from "./errors.js";
 import { getInventory } from "./tools/inventory.js";
 import { getOrder } from "./tools/order.js";
-import { createTicket } from "./tools/ticket.js";
-
-type ToolCall = { [Name in ToolName]: { name: Name; args: ToolArguments[Name] } }[ToolName];
-
-function parseArguments<T>(schema: ZodType<T>, args: unknown): T {
-  const parsed = schema.safeParse(args);
-  if (!parsed.success)
-    throw new BusinessError(
-      "INVALID_ARGUMENT",
-      parsed.error.issues.map((issue) => issue.message).join("；"),
-    );
-  return parsed.data;
-}
-
-function parseToolCall(name: ToolName, args: unknown): ToolCall {
-  switch (name) {
-    case "get_order":
-      return { name, args: parseArguments(toolSchemas.get_order, args) };
-    case "get_inventory":
-      return { name, args: parseArguments(toolSchemas.get_inventory, args) };
-    case "create_after_sales_ticket":
-      return { name, args: parseArguments(toolSchemas.create_after_sales_ticket, args) };
-  }
-}
+import { listTickets } from "./tools/ticket.js";
 
 export class BusinessTools {
   constructor(private readonly db: PrismaClient) {}
-
   async execute(
     name: ToolName,
     args: Record<string, unknown>,
     sessionId: string,
     requestId: string,
   ): Promise<BusinessResult> {
-    const call = parseToolCall(name, args);
+    const session = await this.db.chatSession.findUnique({
+      where: { id: sessionId },
+      include: { owner: true },
+    });
+    if (!session?.owner.enabled) throw new BusinessError("UNAUTHORIZED", "会话账号已失效", 401);
     try {
-      const result = await this.run(call, sessionId);
-      const reference =
-        result.kind === "ticket"
-          ? result.ticketId
-          : result.kind === "order"
-            ? result.orderId
-            : result.sku;
-      await this.writeLog(name, requestId, true, JSON.stringify({ reference }));
+      let result: BusinessResult;
+      switch (name) {
+        case "get_order":
+          result = await getOrder(this.db, parseInput(toolSchemas.get_order, args));
+          break;
+        case "get_inventory":
+          result = await getInventory(this.db, parseInput(toolSchemas.get_inventory, args));
+          break;
+        case "prepare_after_sales_ticket": {
+          const input = parseInput(toolSchemas.prepare_after_sales_ticket, args);
+          const order = await getOrder(this.db, { orderId: input.orderId });
+          if (!["SHIPPED", "DELIVERED"].includes(order.status))
+            throw new BusinessError(
+              "ORDER_STATUS_INVALID",
+              "只有已发货或已签收订单可以申请售后",
+              409,
+            );
+          result = { ...input, kind: "ticketDraft", idempotencyKey: randomUUID() };
+          break;
+        }
+        case "get_tickets": {
+          const input = parseInput(toolSchemas.get_tickets, args);
+          result = {
+            kind: "tickets",
+            orderId: input.orderId,
+            tickets: await listTickets(this.db, {
+              ...(input.orderId ? { orderId: input.orderId } : {}),
+              ...(input.ticketId ? { id: input.ticketId } : {}),
+            }),
+          };
+          break;
+        }
+      }
+      await this.db.operationLog.create({
+        data: { id: randomUUID(), action: name, requestId, success: true },
+      });
       return result;
     } catch (error) {
-      await this.writeLog(
-        name,
-        requestId,
-        false,
-        error instanceof BusinessError ? error.code : "INTERNAL_ERROR",
-      ).catch(() => undefined);
+      await this.db.operationLog
+        .create({
+          data: {
+            id: randomUUID(),
+            action: name,
+            requestId,
+            success: false,
+            detail: error instanceof BusinessError ? error.code : "INTERNAL_ERROR",
+          },
+        })
+        .catch(() => undefined);
       throw error;
     }
-  }
-
-  private run(call: ToolCall, sessionId: string): Promise<BusinessResult> {
-    switch (call.name) {
-      case "get_order":
-        return getOrder(this.db, call.args);
-      case "get_inventory":
-        return getInventory(this.db, call.args);
-      case "create_after_sales_ticket":
-        return createTicket(this.db, call.args, sessionId);
-    }
-  }
-
-  private async writeLog(name: ToolName, requestId: string, success: boolean, detail: string) {
-    await this.db.operationLog.create({
-      data: { id: randomUUID(), action: name, requestId, success, detail },
-    });
   }
 }

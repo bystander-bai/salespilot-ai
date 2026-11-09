@@ -7,4 +7,6 @@
 @import "./styles/insights.css";
 @import "./styles/business.css";
 @import "./styles/landing.css";
-@import "./styles/responsive.css";
+@import "./styles/workflows.css";
+
+@import "./styles/desktop.css";

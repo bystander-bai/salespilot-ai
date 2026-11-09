@@ -1,4 +1,4 @@
-import type { AgentEvent } from "@salespilot/contracts";
+import { toolLabels, type AgentEvent } from "@salespilot/contracts";
 import { welcomeMessage } from "./constants";
 import type { ExecutionStep, Message } from "./types";
 
@@ -11,6 +11,7 @@ export type ChatState = {
 
 export type ChatAction =
   | { type: "reset" }
+  | { type: "restore"; messages: Message[] }
   | { type: "start"; requestId: string; assistantId: string; message: string }
   | { type: "event"; event: AgentEvent }
   | { type: "fail"; message: string };
@@ -38,6 +39,22 @@ function settleRunningSteps(steps: ExecutionStep[], outcome: "done" | "error") {
 
 export function chatReducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
+    case "restore": {
+      let trace = initialChatState();
+      const latest = action.messages.filter((m) => m.role === "assistant").at(-1);
+      for (const event of latest?.trace ?? []) trace = applyAgentEvent(trace, event);
+      return {
+        ...initialChatState(),
+        messages: [...initialChatState().messages, ...action.messages],
+        steps: latest?.trace
+          ? trace.steps
+          : (latest?.steps ?? []).map((s, i) => ({
+              id: String(i),
+              label: toolLabels[s.name] ?? s.name,
+              state: s.success ? ("done" as const) : ("error" as const),
+            })),
+      };
+    }
     case "reset":
       return initialChatState();
     case "start":
@@ -51,8 +68,18 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         steps: [],
         streamedContent: "",
       };
-    case "event":
-      return applyAgentEvent(state, action.event);
+    case "event": {
+      const next = applyAgentEvent(state, action.event);
+      const event = action.event;
+      if (event.type === "run.start" || event.type === "run.done" || event.type === "message.delta")
+        return next;
+      return {
+        ...next,
+        messages: next.messages.map((m) =>
+          m.id === state.assistantId ? { ...m, trace: [...(m.trace ?? []), event] } : m,
+        ),
+      };
+    }
     case "fail":
       return {
         ...updateAssistant(state, { content: action.message, error: action.message }),
@@ -164,6 +191,7 @@ export function applyAgentEvent(state: ChatState, event: AgentEvent): ChatState 
           runId: data.runId,
           result: data.result,
           steps: data.steps,
+          trace: data.trace,
           content: data.answer,
           error: data.error?.message,
         }),

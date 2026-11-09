@@ -11,6 +11,8 @@ import { registerDashboardRoute } from "./routes/dashboard.js";
 import { registerHealthRoute } from "./routes/health.js";
 import { SessionStore } from "./session-store.js";
 import { BusinessTools } from "./tools.js";
+import { registerAuth } from "./auth.js";
+import { registerSessionRoutes } from "./routes/sessions.js";
 
 const REQUEST_BODY_LIMIT_BYTES = 16 * 1024;
 const REQUEST_TIMEOUT_MS = 120_000;
@@ -23,7 +25,7 @@ export function createApp(db: PrismaClient, options: AppOptions = {}) {
     bodyLimit: REQUEST_BODY_LIMIT_BYTES,
     requestTimeout: REQUEST_TIMEOUT_MS,
   });
-  const store = new SessionStore();
+  const store = new SessionStore(db);
   const agent = new SalesAgent(
     config,
     options.tools ?? new BusinessTools(db),
@@ -33,6 +35,9 @@ export function createApp(db: PrismaClient, options: AppOptions = {}) {
 
   app.register(cors, { origin: config.corsOrigin.split(",").map((origin) => origin.trim()) });
   registerErrorHandler(app);
+  registerAuth(app, db, config);
+  app.addHook("onReady", () => store.recover());
+  registerSessionRoutes(app, db, store);
   registerHealthRoute(app, db, config);
   registerDashboardRoute(app, db);
   registerBusinessRoutes(app, db);

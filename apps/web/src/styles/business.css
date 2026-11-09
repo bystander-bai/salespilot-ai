@@ -197,37 +197,6 @@
     transform: rotate(360deg);
   }
 }
-@media (max-width: 1180px) {
-  .main-layout.business-layout {
-    grid-template-columns: 165px minmax(0, 1fr);
-  }
-}
-@media (max-width: 560px) {
-  .business-toolbar {
-    flex-wrap: wrap;
-    padding: 14px;
-    gap: 10px;
-  }
-  .business-search {
-    flex-basis: 100%;
-  }
-  .business-toolbar select {
-    flex: 1;
-    min-width: 0;
-  }
-  .business-heading-icon {
-    width: 40px;
-    height: 40px;
-    flex-shrink: 0;
-  }
-  .business-workspace .workspace-heading {
-    gap: 12px;
-  }
-  .business-pagination {
-    padding: 14px;
-    gap: 8px;
-  }
-}
 @media (prefers-reduced-motion: reduce) {
   .business-spinning {
     animation: none;

@@ -1,0 +1,291 @@
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: #faf7ef;
+  padding: 24px;
+}
+.login-card {
+  width: min(100%, 420px);
+  padding: 36px;
+  border: 1px solid #e9e3d6;
+  border-radius: 22px;
+  background: #fffdf8;
+  box-shadow: 0 18px 60px #3428150a;
+  display: grid;
+  gap: 18px;
+}
+.login-card > svg {
+  width: 44px;
+  height: 44px;
+}
+.login-card h1 {
+  font-size: 25px;
+  margin: 0;
+}
+.login-card p {
+  margin: 0;
+  line-height: 1.6;
+}
+.login-card label,
+.stack-form label {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.login-card input,
+.stack-form input,
+.stack-form select,
+.stack-form textarea,
+.history-panel input,
+.detail-drawer select {
+  min-width: 0;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ded8cb;
+  background: #fffefb;
+  border-radius: 9px;
+  color: #2d352f;
+  font: inherit;
+}
+.stack-form textarea {
+  resize: vertical;
+}
+.primary-button,
+.secondary-button,
+.detail-drawer button,
+.account-bar button,
+.result-actions button,
+.business-table button {
+  border: 1px solid #dcd9cd;
+  background: #fffdf7;
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #315b48;
+  font: inherit;
+  cursor: pointer;
+}
+.primary-button,
+.detail-drawer .primary-button {
+  background: #315e4a;
+  color: white;
+  border-color: #315e4a;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.form-error {
+  color: #b34031;
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+.account-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 8px 34px;
+  border-bottom: 1px solid #eee9dc;
+  font-size: 12px;
+}
+.account-bar span {
+  margin-right: auto;
+}
+.history-panel {
+  margin: 20px 0;
+  white-space: normal;
+  min-width: 0;
+}
+.history-panel summary {
+  font-size: 11px;
+  color: #767e74;
+  cursor: pointer;
+  margin-bottom: 12px;
+}
+.history-panel > button {
+  width: 100%;
+  margin-bottom: 10px;
+}
+.history-panel input {
+  font-size: 12px;
+}
+.history-list {
+  max-height: 360px;
+  overflow: auto;
+  margin-top: 10px;
+}
+.history-item {
+  border-radius: 9px;
+  padding: 7px;
+  margin: 5px 0;
+}
+.history-item.selected {
+  background: #e8eee1;
+}
+.history-item button {
+  background: none;
+  border: 0;
+  color: #566456;
+  cursor: pointer;
+  font-size: 10px;
+  padding: 4px;
+}
+.history-item .history-title {
+  font-size: 12px;
+  width: 100%;
+  text-align: left;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.history-paging {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 3px;
+  margin-top: 12px;
+  font-size: 10px;
+}
+.history-paging button {
+  border: 0;
+  background: none;
+  color: #466b51;
+  cursor: pointer;
+  font-size: 10px;
+}
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #152d2444;
+  display: flex;
+  justify-content: flex-end;
+}
+.detail-drawer {
+  width: min(640px, 100vw);
+  height: 100%;
+  overflow-y: auto;
+  background: #fffdf7;
+  padding: 28px;
+  box-shadow: -12px 0 60px #152d241a;
+  color: #303a31;
+}
+.detail-drawer > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid #e8e3d7;
+  padding-bottom: 15px;
+  margin-bottom: 20px;
+}
+.detail-drawer h2 {
+  font-size: 21px;
+  margin: 0;
+}
+.detail-drawer h3 {
+  font-size: 16px;
+  margin: 24px 0 12px;
+}
+.detail-drawer p {
+  font-size: 13px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.detail-item {
+  background: #f6f4eb;
+  border: 1px solid #e9e5da;
+  border-radius: 12px;
+  padding: 14px;
+  margin: 12px 0;
+}
+.detail-item p {
+  margin: 5px 0;
+}
+.stack-form {
+  display: grid;
+  gap: 18px;
+  margin: 18px 0 28px;
+}
+.stack-form fieldset {
+  border: 1px solid #e3dfd2;
+  border-radius: 10px;
+  padding: 15px;
+}
+.stack-form fieldset legend {
+  font-size: 13px;
+}
+.stack-form .quantity-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin: 12px 0;
+}
+.quantity-row input {
+  width: 85px;
+  flex-shrink: 0;
+}
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.action-row select {
+  flex: 1;
+  width: auto;
+}
+.related-link {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin: 10px 0;
+}
+.ticket-timeline {
+  list-style: none;
+  padding: 0 0 0 18px;
+  border-left: 2px solid #dce4d5;
+}
+.ticket-timeline li {
+  margin: 20px 0;
+  position: relative;
+  font-size: 13px;
+}
+.ticket-timeline li::before {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  left: -23px;
+  top: 5px;
+  background: #517f62;
+  border-radius: 50%;
+}
+.ticket-timeline time {
+  display: block;
+  margin-top: 6px;
+  color: #77816f;
+  font-size: 11px;
+}
+.ticket-timeline p {
+  margin: 4px 0;
+}
+.result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+  font-size: 11px;
+}
+.result-card > p {
+  margin: 10px 0;
+  line-height: 1.7;
+}
+.business-toolbar {
+  flex-wrap: wrap;
+}

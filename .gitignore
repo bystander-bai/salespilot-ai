@@ -25,14 +25,23 @@ dist/
 # Logs and tool caches
 *.log
 npm-debug.log*
+logs/
 .npm/
 .cache/
 .vite/
 .vite-temp/
+.eslintcache
+.stylelintcache
 *.tsbuildinfo
+
+# Temporary files and local backup copies
+*.tmp
+*.temp
+*.bak
 
 # Generated reports and temporary verification artifacts
 coverage/
+.nyc_output/
 artifacts/
 test-results/
 playwright-report/

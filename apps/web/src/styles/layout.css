@@ -5,10 +5,11 @@
     var(--color-bg);
 }
 .topbar {
-  height: 68px;
+  min-height: 68px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 24px;
   padding: 0 34px;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-header);
@@ -53,6 +54,14 @@
   display: flex;
   align-items: center;
   gap: 14px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.top-nav {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
 }
 .status-pill {
   display: flex;
@@ -118,16 +127,15 @@
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 11px;
-  width: 100%;
+  gap: 8px;
   border: 0;
   border-radius: 9px;
   background: transparent;
   color: var(--color-text-muted);
   text-align: left;
-  padding: 11px 12px;
-  margin-bottom: 3px;
+  padding: 11px 13px;
   font-size: 12px;
+  white-space: nowrap;
 }
 .nav-item:hover {
   color: var(--color-accent);
@@ -139,7 +147,6 @@
   font-weight: 700;
 }
 .nav-count {
-  margin-left: auto;
   color: var(--color-accent);
   font:
     9px "DM Mono",

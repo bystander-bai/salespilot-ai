@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { randomUUID } from "node:crypto";
-import { chatSchema, type AgentEvent } from "@salespilot/contracts";
+import { chatSchema, type AgentEvent, type TraceEvent } from "@salespilot/contracts";
 import type { SalesAgent } from "../agent.js";
 import { BusinessError, errorStatus, normalizeError } from "../errors.js";
 import type { SessionStore } from "../session-store.js";
@@ -30,10 +30,16 @@ async function handleChat(
     );
   const { sessionId, message, requestId } = parsed.data;
   const runId = requestId ?? randomUUID();
-  const sessionRequest = store.acquire(sessionId, runId, message);
+  const sessionRequest = await store.acquire(sessionId, request.actor.id, runId, message);
   const { cached, session } = sessionRequest;
   const connection = stream ? new SseConnection(reply.raw) : undefined;
-  const emit = (event: AgentEvent) => connection?.send(event);
+  const trace: TraceEvent[] = [];
+  // Final results are sent only after the database commit.
+  const emit = (event: AgentEvent) => {
+    if (event.type !== "run.start" && event.type !== "run.done" && event.type !== "message.delta")
+      trace.push(event);
+    if (event.type !== "run.done") connection?.send(event);
+  };
 
   try {
     if (connection) {
@@ -49,11 +55,13 @@ async function handleChat(
         message,
         sessionId,
         runId,
-        session,
+        session!,
         emit,
         connection?.signal,
       );
-      sessionRequest.remember(response);
+      response.trace = trace;
+      await sessionRequest.remember(response);
+      connection?.send({ type: "run.done", data: response });
       if (!stream)
         return reply.status(response.error ? errorStatus(response.error.code) : 200).send(response);
     }
@@ -61,11 +69,14 @@ async function handleChat(
     if (!connection?.signal.aborted) {
       if (stream) {
         emit({ type: "run.error", data: normalizeError(error, runId) });
-        emit({ type: "run.done", data: { runId, failed: true } });
+        connection?.send({ type: "run.done", data: { runId, failed: true } });
       } else throw error;
     }
   } finally {
-    sessionRequest.release();
-    connection?.close();
+    try {
+      await sessionRequest.release();
+    } finally {
+      connection?.close();
+    }
   }
 }
